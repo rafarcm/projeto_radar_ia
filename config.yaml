@@ -32,8 +32,7 @@ saida:
 entrega:
   email:
     ativo: true
-    destinatarios:
-      - rafaelrcmoraes@gmail.com
+    # Destinatários ficam no .env (EMAIL_DESTINATARIOS), fora do Git.
     assunto: "Radar IA - {data}"
   telegram:
     ativo: false

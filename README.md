@@ -112,7 +112,7 @@ Códigos de saída: `0` sucesso, `1` erro (configuração, fontes, idioma), `3` 
 
 - **`.env`**: segredos e modelo. Nunca vai para o Git.
   - `RADAR_MODELO`: modelo no formato do LangChain `provedor:modelo`. Padrão: `anthropic:claude-opus-5-5`. Para baratear, use, por exemplo, `anthropic:claude-sonnet-5-5` ou `anthropic:claude-haiku-5-5`. Para trocar de provedor (ex.: `openai:...`), instale o pacote do provedor (`pip install langchain-openai`) e defina a chave correspondente.
-  - `ANTHROPIC_API_KEY`, `SMTP_*` e `TELEGRAM_*`.
+  - `ANTHROPIC_API_KEY`, `SMTP_*`, `EMAIL_DESTINATARIOS` e `TELEGRAM_*`.
 - **`config.yaml`**: janela de tempo, limites, limiar de duplicidade (`deduplicacao.limiar_titulo`, de 0 a 100), concorrência, pasta de saída, caminho do SQLite e canais de entrega.
 
 ## Fontes (`fontes.yaml`)
@@ -213,7 +213,7 @@ radar testar-entrega       # envia uma mensagem de teste para cada canal ativo
 
 ### E-mail (SMTP)
 
-No `.env`: `SMTP_HOST`, `SMTP_PORTA` (587 para STARTTLS ou 465 para SSL), `SMTP_USUARIO` e `SMTP_SENHA`. Destinatários e assunto (`{data}` vira dd/mm/aaaa) ficam em `config.yaml`. O e-mail tem versão em texto simples e em HTML, com a visão geral e os destaques, e leva o PDF anexado.
+No `.env`: `SMTP_HOST`, `SMTP_PORTA` (587 para STARTTLS ou 465 para SSL), `SMTP_USUARIO`, `SMTP_SENHA` e `EMAIL_DESTINATARIOS` (destinatários separados por vírgula, ex.: `voce@gmail.com,outra@exemplo.com`; ficam no `.env` para que seus endereços não vão para o Git). O assunto (`{data}` vira dd/mm/aaaa) fica em `config.yaml`. O e-mail tem versão em texto simples e em HTML, com a visão geral e os destaques, e leva o PDF anexado.
 
 **Use uma senha de app, nunca a senha principal:**
 
@@ -234,7 +234,7 @@ O bot envia primeiro uma mensagem com a visão geral e os destaques (dividida se
 
 O workflow [.github/workflows/radar.yml](.github/workflows/radar.yml) roda todo dia às **08:00 de Brasília** (`cron: "0 11 * * *"`, já que o cron do GitHub usa UTC: hora em SP + 3 = hora UTC). Também dá para disparar manualmente em *Actions → Radar IA diário → Run workflow*.
 
-1. Em *Settings → Secrets and variables → Actions*, crie os **secrets** `ANTHROPIC_API_KEY`, `SMTP_HOST`, `SMTP_PORTA`, `SMTP_USUARIO`, `SMTP_SENHA`, `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` (só os dos canais que você usar).
+1. Em *Settings → Secrets and variables → Actions*, crie os **secrets** `ANTHROPIC_API_KEY`, `SMTP_HOST`, `SMTP_PORTA`, `SMTP_USUARIO`, `SMTP_SENHA`, `EMAIL_DESTINATARIOS`, `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` (só os dos canais que você usar).
 2. Opcionalmente, crie a **variável** `RADAR_MODELO`.
 3. Ative os canais no `config.yaml` e faça commit.
 

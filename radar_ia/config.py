@@ -75,8 +75,18 @@ class Config(BaseModel):
 
 
 def carregar_config(caminho: Path = Path("config.yaml")) -> Config:
-    """Carrega o .env e o config.yaml; usa padrões se o arquivo não existir."""
+    """Carrega o .env e o config.yaml; usa padrões se o arquivo não existir.
+
+    Os destinatários do e-mail vêm de EMAIL_DESTINATARIOS (separados por vírgula),
+    para que endereços pessoais não fiquem no config.yaml, que vai para o Git."""
     load_dotenv()
+    cfg = _ler_yaml(caminho)
+    if destinatarios := os.getenv("EMAIL_DESTINATARIOS"):
+        cfg.entrega.email.destinatarios = [d.strip() for d in destinatarios.split(",") if d.strip()]
+    return cfg
+
+
+def _ler_yaml(caminho: Path) -> Config:
     if not caminho.exists():
         return Config()
     try:

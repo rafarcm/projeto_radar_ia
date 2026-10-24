@@ -4,7 +4,7 @@ import pytest
 from conftest import relatorio_exemplo
 
 from radar_ia import entrega
-from radar_ia.config import ConfigEmail, ConfigEntrega, ConfigTelegram
+from radar_ia.config import ConfigEmail, ConfigEntrega, ConfigTelegram, carregar_config
 from radar_ia.entrega import email, telegram
 from radar_ia.registro import FiltroSegredos, ocultar_segredos
 
@@ -101,3 +101,9 @@ def test_segredos_nunca_aparecem_nos_logs(monkeypatch, caplog):
     with caplog.at_level(logging.INFO, logger="teste_segredos"):
         log.info("url=%s senha=%s", f"https://api.telegram.org/bot{token}/x", "senha-super-secreta")
     assert token not in caplog.text and "senha-super-secreta" not in caplog.text
+
+
+def test_destinatarios_vem_do_ambiente(tmp_path, monkeypatch):
+    monkeypatch.setenv("EMAIL_DESTINATARIOS", " a@x.com, b@x.com ,")
+    cfg = carregar_config(tmp_path / "inexistente.yaml")
+    assert cfg.entrega.email.destinatarios == ["a@x.com", "b@x.com"]

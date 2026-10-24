@@ -44,7 +44,7 @@ class CredenciaisSMTP:
 def montar_mensagem(rel: Relatorio, pdf: Path, cfg: ConfigEmail, remetente: str) -> EmailMessage:
     """E-mail com texto simples + HTML (visão geral e destaques) e o PDF anexo."""
     if not cfg.destinatarios:
-        raise ErroEmail("nenhum destinatário em config.yaml (entrega.email.destinatarios)")
+        raise ErroEmail("nenhum destinatário: defina EMAIL_DESTINATARIOS no .env")
     data = rel.fim.astimezone(FUSO).strftime("%d/%m/%Y")
     msg = EmailMessage()
     msg["Subject"] = cfg.assunto.format(data=data)
@@ -106,7 +106,7 @@ def enviar_relatorio(rel: Relatorio, pdf: Path, cfg: ConfigEmail) -> None:
 def enviar_teste(cfg: ConfigEmail) -> None:
     cred = CredenciaisSMTP.do_ambiente()
     if not cfg.destinatarios:
-        raise ErroEmail("nenhum destinatário em config.yaml (entrega.email.destinatarios)")
+        raise ErroEmail("nenhum destinatário: defina EMAIL_DESTINATARIOS no .env")
     msg = EmailMessage()
     msg["Subject"] = "Radar IA - mensagem de teste"
     msg["From"] = cred.usuario

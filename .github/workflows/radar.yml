@@ -31,6 +31,7 @@ jobs:
       SMTP_PORTA: ${{ secrets.SMTP_PORTA }}
       SMTP_USUARIO: ${{ secrets.SMTP_USUARIO }}
       SMTP_SENHA: ${{ secrets.SMTP_SENHA }}
+      EMAIL_DESTINATARIOS: ${{ secrets.EMAIL_DESTINATARIOS }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
     steps:

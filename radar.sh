@@ -79,7 +79,7 @@ executar() {
     fontes) exigir_instalacao; "$RADAR" fontes testar ;;
     simular) exigir_instalacao; "$RADAR" gerar --simular "$@" ;;
     testar-email|testar-entrega)
-      exigir_instalacao; conferir_env SMTP_HOST SMTP_USUARIO SMTP_SENHA || true
+      exigir_instalacao; conferir_env SMTP_HOST SMTP_USUARIO SMTP_SENHA EMAIL_DESTINATARIOS || true
       "$RADAR" testar-entrega ;;
     teste)
       exigir_instalacao; conferir_env ANTHROPIC_API_KEY
