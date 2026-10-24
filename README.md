@@ -1,4 +1,6 @@
-# radar-ia
+![Radar IA](docs/capa.png)
+
+# projeto_radar_ia
 
 Coleta notícias recentes sobre Inteligência Artificial **somente das fontes que você cadastra**, traduz e resume tudo em **português do Brasil** com LangChain, gera um **PDF** e, se você quiser, envia por **e-mail** e **Telegram**.
 
