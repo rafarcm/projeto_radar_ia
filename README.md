@@ -215,7 +215,7 @@ radar testar-entrega       # envia uma mensagem de teste para cada canal ativo
 
 ### E-mail (SMTP)
 
-No `.env`: `SMTP_HOST`, `SMTP_PORTA` (587 para STARTTLS ou 465 para SSL), `SMTP_USUARIO`, `SMTP_SENHA` e `EMAIL_DESTINATARIOS` (destinatários separados por vírgula, ex.: `voce@gmail.com,outra@exemplo.com`; ficam no `.env` para que seus endereços não vão para o Git). O assunto (`{data}` vira dd/mm/aaaa) fica em `config.yaml`. O e-mail tem versão em texto simples e em HTML, com a visão geral e os destaques, e leva o PDF anexado.
+No `.env`: `SMTP_HOST`, `SMTP_PORTA` (587 para STARTTLS ou 465 para SSL), `SMTP_USUARIO`, `SMTP_SENHA` e `EMAIL_DESTINATARIOS` (um ou mais destinatários separados por vírgula, ex.: `voce@gmail.com,outra@exemplo.com`; ficam no `.env` para que seus endereços não vão para o Git). O assunto (`{data}` vira dd/mm/aaaa) fica em `config.yaml`. O e-mail tem versão em texto simples e em HTML, com a visão geral e os destaques, e leva o PDF anexado.
 
 **Use uma senha de app, nunca a senha principal:**
 

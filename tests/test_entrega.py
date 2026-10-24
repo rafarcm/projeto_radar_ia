@@ -107,3 +107,9 @@ def test_destinatarios_vem_do_ambiente(tmp_path, monkeypatch):
     monkeypatch.setenv("EMAIL_DESTINATARIOS", " a@x.com, b@x.com ,")
     cfg = carregar_config(tmp_path / "inexistente.yaml")
     assert cfg.entrega.email.destinatarios == ["a@x.com", "b@x.com"]
+
+
+def test_destinatarios_aceita_ponto_e_virgula_e_espaco(tmp_path, monkeypatch):
+    monkeypatch.setenv("EMAIL_DESTINATARIOS", "a@x.com; b@x.com c@x.com")
+    cfg = carregar_config(tmp_path / "inexistente.yaml")
+    assert cfg.entrega.email.destinatarios == ["a@x.com", "b@x.com", "c@x.com"]
