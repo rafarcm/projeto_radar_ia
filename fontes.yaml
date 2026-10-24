@@ -1,0 +1,136 @@
+# fontes.yaml - fontes do radar-ia
+#
+# Campos de cada fonte:
+#   nome:      nome exibido no relatório (único)
+#   url:       endereço do feed RSS/Atom
+#   categoria: oficial | pesquisa | imprensa | comunidade
+#   ativa:     true para usar, false para ignorar sem apagar
+#   peso:      1 a 5 (quanto maior, mais a fonte pesa nos destaques)
+#
+# Sugestão de pesos: oficial 5, pesquisa 4, imprensa 3, comunidade 1 a 3.
+# Todas as URLs abaixo foram validadas com "radar fontes testar --todas" em
+# 23/10/2026 (todas responderam com itens). Feeds mudam: rode o teste de novo
+# sempre que suspeitar de uma fonte.
+
+fontes:
+  # ---------------------------------------------------------------- Oficiais
+  - nome: OpenAI News
+    url: https://openai.com/news/rss.xml
+    categoria: oficial
+    ativa: true
+    peso: 5
+
+  - nome: Google DeepMind
+    url: https://deepmind.google/blog/rss.xml
+    categoria: oficial
+    ativa: true
+    peso: 5
+
+  - nome: Hugging Face Blog
+    url: https://huggingface.co/blog/feed.xml
+    categoria: oficial
+    ativa: true
+    peso: 5
+
+  - nome: Mistral AI
+    url: https://mistral.ai/news/rss
+    categoria: oficial
+    ativa: true
+    peso: 5
+
+  - nome: Microsoft AI
+    url: https://news.microsoft.com/source/topics/ai/feed/
+    categoria: oficial
+    ativa: true
+    peso: 5
+
+  - nome: NVIDIA Technical Blog
+    url: https://developer.nvidia.com/blog/feed
+    categoria: oficial
+    ativa: true
+    peso: 4
+
+  # ---------------------------------------------------------------- Pesquisa
+  # Atenção: o arXiv traz preprints (sem revisão por pares) e em grande volume.
+  # Use --max-itens para limitar e deixe o LLM filtrar por relevância.
+  - nome: arXiv cs.AI
+    url: https://rss.arxiv.org/rss/cs.AI
+    categoria: pesquisa
+    ativa: true
+    peso: 4
+    # Filtro gratuito (opcional): só entram artigos cujo título/resumo tenha ao
+    # menos um destes termos. Descomente e ajuste para reduzir o volume do arXiv.
+    # palavras_chave: [LLM, language model, agent, reasoning, alignment, safety, benchmark]
+
+  - nome: arXiv cs.LG
+    url: https://rss.arxiv.org/rss/cs.LG
+    categoria: pesquisa
+    ativa: false
+    peso: 4
+
+  - nome: arXiv cs.CL
+    url: https://rss.arxiv.org/rss/cs.CL
+    categoria: pesquisa
+    ativa: false
+    peso: 4
+
+  - nome: Berkeley AI Research (BAIR)
+    url: https://bair.berkeley.edu/blog/feed.xml
+    categoria: pesquisa
+    ativa: true
+    peso: 4
+
+  # ---------------------------------------------------------------- Imprensa
+  - nome: MIT Technology Review - IA
+    url: https://www.technologyreview.com/topic/artificial-intelligence/feed
+    categoria: imprensa
+    ativa: true
+    peso: 3
+
+  - nome: Ars Technica - IA
+    url: https://arstechnica.com/ai/feed/
+    categoria: imprensa
+    ativa: true
+    peso: 3
+
+  - nome: The Verge - IA
+    url: https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
+    categoria: imprensa
+    ativa: true
+    peso: 3
+
+  - nome: TechCrunch - IA
+    url: https://techcrunch.com/category/artificial-intelligence/feed/
+    categoria: imprensa
+    ativa: true
+    peso: 3
+
+  - nome: The Decoder
+    url: https://the-decoder.com/feed/
+    categoria: imprensa
+    ativa: true
+    peso: 3
+
+  # ------------------------------------------------------------- Comunidades
+  - nome: Simon Willison
+    url: https://simonwillison.net/atom/everything/
+    categoria: comunidade
+    ativa: true
+    peso: 3
+
+  - nome: Import AI
+    url: https://importai.substack.com/feed
+    categoria: comunidade
+    ativa: true
+    peso: 3
+
+# ---------------------------------------------------------------------------
+# SEM FEED RSS OFICIAL (não funcionam como fonte até haver outra forma de coleta):
+#   - Anthropic News  -> https://www.anthropic.com/news
+#   - Meta AI Blog    -> https://ai.meta.com/blog/
+# Existem feeds não oficiais gerados por terceiros, mas podem quebrar sem aviso.
+# Se usar um, descreva-o claramente como "não oficial" no nome da fonte.
+#
+# Fóruns (Hacker News, Reddit r/MachineLearning): feeds não verificados.
+# Úteis para detectar tendências, mas com muito ruído; se adicionar, use peso 1.
+# ---------------------------------------------------------------------------

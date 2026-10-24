@@ -1,0 +1,30 @@
+# Segredos: qualquer variação de .env (o modelo .env.example vai para o Git)
+.env
+.env.*
+!.env.example
+
+# Ambiente e artefatos do Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# Dados gerados pelo radar (histórico, cache de traduções, checkpoints, PDFs, logs)
+relatorios/
+dados/
+logs/
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.pdf
+*.log
+
+# Configurações locais de ferramentas
+.claude/settings.local.json
+.idea/
+.DS_Store

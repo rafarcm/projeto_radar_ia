@@ -1,0 +1,33 @@
+# glossario.yaml - como tratar termos na tradução
+#
+# Cada termo tem UMA regra:
+#   manter: true                -> não traduzir (fica como está no original)
+#   traduzir_como: "<termo>"    -> sempre usar essa tradução
+#
+# Mudou o glossário? Aumente "versao" para invalidar o cache de traduções.
+
+versao: 1
+
+termos:
+  - termo: fine-tuning
+    manter: true
+  - termo: prompt
+    manter: true
+  - termo: embedding
+    manter: true
+  - termo: benchmark
+    manter: true
+  - termo: open source
+    traduzir_como: "código aberto"
+  - termo: open weights
+    traduzir_como: "pesos abertos"
+  - termo: reasoning
+    traduzir_como: "raciocínio"
+  - termo: machine learning
+    traduzir_como: "aprendizado de máquina"
+  - termo: deep learning
+    traduzir_como: "aprendizado profundo"
+  - termo: AI safety
+    traduzir_como: "segurança de IA"
+  - termo: agent
+    traduzir_como: "agente"

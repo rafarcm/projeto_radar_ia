@@ -1,0 +1,6 @@
+# Exemplo de cron local (edite com: crontab -e)
+# Roda todo dia às 08:00 no fuso da máquina. Se a máquina não estiver em
+# America/Sao_Paulo, ajuste o horário ou defina CRON_TZ (cronie/systemd-cron):
+CRON_TZ=America/Sao_Paulo
+
+0 8 * * * cd /caminho/para/radar-ia && .venv/bin/radar gerar >> logs/radar.log 2>&1

@@ -1,0 +1,77 @@
+name: Radar IA diário
+
+on:
+  schedule:
+    # O cron do GitHub usa UTC. 11:00 UTC = 08:00 em São Paulo (UTC-3, sem horário de verão).
+    # Para mudar o horário: hora_desejada_em_SP + 3 = hora UTC.
+    # O GitHub pode atrasar execuções agendadas em alguns minutos em horários de pico.
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+    inputs:
+      horas:
+        description: "Janela de tempo em horas"
+        default: "24"
+
+concurrency:
+  group: radar-ia
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # para salvar o histórico no branch "radar-dados"
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TZ: America/Sao_Paulo
+      RADAR_MODELO: ${{ vars.RADAR_MODELO || 'anthropic:claude-opus-5-5' }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORTA: ${{ secrets.SMTP_PORTA }}
+      SMTP_USUARIO: ${{ secrets.SMTP_USUARIO }}
+      SMTP_SENHA: ${{ secrets.SMTP_SENHA }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar
+        run: pip install -e .
+
+      - name: Fontes com acentos (DejaVu)
+        run: sudo apt-get install -y -qq fonts-dejavu-core
+
+      # Histórico SQLite entre execuções: fica num branch próprio do repositório
+      # ("radar-dados"), que não expira como o cache do Actions.
+      - name: Restaurar histórico
+        run: scripts/historico_git.sh baixar
+
+      # Modelo de embeddings da deduplicação semântica (~220 MB, baixado grátis do
+      # Hugging Face). O cache só evita baixá-lo de novo a cada execução.
+      - name: Cache do modelo de embeddings
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/radar-ia/modelos
+          key: radar-embeddings-paraphrase-multilingual-MiniLM-L12-v2
+
+      - name: Gerar e enviar relatório
+        run: radar gerar --horas "${{ github.event.inputs.horas || '24' }}"
+
+      - name: Salvar histórico
+        if: always()
+        run: scripts/historico_git.sh enviar
+
+      - name: Publicar PDF como artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: radar-ia-${{ github.run_id }}
+          path: relatorios/*.pdf
+          if-no-files-found: ignore
+          retention-days: 30
