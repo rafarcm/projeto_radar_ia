@@ -84,8 +84,9 @@ def test_pipeline_completo_gera_pdf_e_historico(ambiente):
     ctx, modelo, tmp_path = ambiente
     estado = asyncio.run(fluxo.construir_grafo_radar().ainvoke(_entrada(), context=ctx))
     rel = estado["relatorio"]
-    assert estado["pdf"].endswith("radar-ia_2026-10-23.pdf")
-    assert (tmp_path / "rel" / "radar-ia_2026-10-23.pdf").exists()
+    assert estado["pdf"].endswith("radar-ia_2026-10-23_0900.pdf")
+    assert (tmp_path / "rel" / "radar-ia_2026-10-23_0900.pdf").exists()
+    assert rel.ja_reportados == 0
     assert len(rel.itens) == 3 and rel.falhas[0].fonte == "Quebrada"
     assert rel.destaques[0].tema == "Regulação"  # maior relevância
     assert "entrega" not in estado  # --sem-enviar
@@ -94,6 +95,8 @@ def test_pipeline_completo_gera_pdf_e_historico(ambiente):
     chamadas = len(modelo.chamadas_de("ResultadoItem"))
     estado2 = asyncio.run(fluxo.construir_grafo_radar().ainvoke(_entrada(), context=ctx))
     assert estado2["selecionados"] == [] and len(modelo.chamadas_de("ResultadoItem")) == chamadas
+    assert estado2["relatorio"].ja_reportados == 3
+    assert estado2["pdf"] == estado["pdf"]  # mesma janela, mesmo arquivo
 
 
 def test_simular_nao_chama_llm(ambiente):
@@ -101,6 +104,22 @@ def test_simular_nao_chama_llm(ambiente):
     estado = asyncio.run(fluxo.construir_grafo_radar().ainvoke(_entrada(simular=True), context=ctx))
     assert len(estado["selecionados"]) == 3
     assert modelo.chamadas == [] and "pdf" not in estado
+
+
+def test_texto_completo_vai_para_o_prompt_de_todos_os_itens(ambiente, monkeypatch):
+    ctx, modelo, _ = ambiente
+    artigos = {i.url: f"Full article text number {n} with more details." for n, i in enumerate(ITENS, 1)}
+
+    def baixar(itens, cfg):
+        for i in itens:
+            i.texto_completo = artigos[i.url]
+
+    monkeypatch.setattr(fluxo, "baixar_texto_completo", baixar)
+    estado = asyncio.run(fluxo.construir_grafo_radar().ainvoke(_entrada(texto_completo=True), context=ctx))
+    assert len(estado["relatorio"].itens) == 3
+    prompts = [m[1][1] for m in modelo.chamadas_de("ResultadoItem")]
+    assert len(prompts) == 3
+    assert all(any(f"Texto do artigo:\n{t}" in p for p in prompts) for t in artigos.values())
 
 
 def test_retoma_execucao_interrompida_sem_refazer_traducoes(ambiente, monkeypatch):

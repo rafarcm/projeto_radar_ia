@@ -122,3 +122,16 @@ def test_chave_de_cache_muda_com_conteudo_e_glossario():
     assert base == chave_traducao("https://a.com/1", "texto", 1, "m")
     assert base != chave_traducao("https://a.com/1", "texto alterado", 1, "m")
     assert base != chave_traducao("https://a.com/1", "texto", 2, "m")
+
+
+def test_texto_do_artigo_respeita_limite_configurado(monkeypatch):
+    import trafilatura
+
+    from radar_ia import coleta
+    from radar_ia.config import ConfigColeta
+
+    monkeypatch.setattr(coleta, "permitido_por_robots", lambda url, cfg: True)
+    monkeypatch.setattr(coleta, "baixar", lambda url, cfg: type("Resp", (), {"text": "<html></html>"})())
+    monkeypatch.setattr(trafilatura, "extract", lambda html, **_: "a" * 30000)
+    assert len(coleta.baixar_texto_artigo("https://x.com/a", ConfigColeta())) == 20000
+    assert len(coleta.baixar_texto_artigo("https://x.com/a", ConfigColeta(max_caracteres_artigo=500))) == 500

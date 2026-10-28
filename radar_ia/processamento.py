@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Protocol
@@ -40,6 +41,12 @@ class ResultadoItem(BaseModel):
     foi_traduzido: bool = Field(description="true se o original não estava em português.")
     tema: Tema = Field(description="Tema principal, um da lista fixa.")
     relevancia: int = Field(ge=1, le=5, description="Relevância para quem acompanha IA, de 1 a 5.")
+    # Padrão True para que traduções antigas do cache continuem válidas.
+    conteudo_suficiente: bool = Field(
+        default=True,
+        description="false se o conteúdo fornecido traz só o título ou um resumo curto, "
+                    "sem os detalhes necessários para um bom resumo.",
+    )
 
 
 class Verificacao(BaseModel):
@@ -65,6 +72,7 @@ Regras de conteúdo (obrigatórias):
 - Não invente números, nomes, datas, citações nem conclusões.
 - Se o conteúdo for insuficiente para um resumo, diga isso no resumo (ex.: "O feed traz apenas o título; não há detalhes sobre ...").
 - O resumo tem 2 a 3 frases.
+- conteudo_suficiente: false se o conteúdo for só o título ou um resumo curto, sem os detalhes principais da notícia (o quê, quem, como, números, disponibilidade); true caso contrário.
 
 Regras de idioma (obrigatórias):
 - Se o original NÃO estiver em português: traduza e resuma de uma vez, com fidelidade, sem acrescentar, omitir ou inventar informações.
@@ -137,6 +145,8 @@ class Contexto:
     armazenamento: Armazenamento | None = None
     identificador_modelo: str = ""
     verificar_traducao: bool = False
+    # url -> texto do artigo (ou None); usado quando o feed não traz detalhes suficientes.
+    buscar_artigo: Callable[[str], str | None] | None = None
 
 
 def conteudo_original(item: ItemColetado) -> str:

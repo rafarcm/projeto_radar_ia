@@ -77,3 +77,4 @@ class Relatorio(BaseModel):
     destaques: list[ItemProcessado]
     itens: list[ItemProcessado]
     falhas: list[FalhaFonte] = []
+    ja_reportados: int = 0  # coletados que já saíram em relatórios anteriores

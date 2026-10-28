@@ -92,6 +92,50 @@ def test_cache_de_traducao(item_en, glossario, cfg_proc, tmp_path):
     assert len(modelo.chamadas) == 2
 
 
+ARTIGO = ("Acme announced on Monday a new open source language model with 70 billion parameters. "
+          "The model is available today under the Apache 2.0 license and scored 88 on the MMLU benchmark.")
+RESUMO_ARTIGO = ("A Acme lançou um modelo de código aberto com 70 bilhões de parâmetros, disponível sob a "
+                 "licença Apache 2.0, que obteve 88 pontos no MMLU.")
+
+
+def test_feed_insuficiente_baixa_artigo_e_refaz_resumo(item_en, glossario, cfg_proc):
+    modelo = ModeloFalso({"ResultadoItem": [resultado_pt(conteudo_suficiente=False),
+                                            resultado_pt(resumo_pt=RESUMO_ARTIGO)]})
+    baixados = []
+    ctx = Contexto(modelo, glossario, cfg_proc, buscar_artigo=lambda url: baixados.append(url) or ARTIGO)
+    r = rodar(processar_item(item_en, ctx))
+    assert baixados == [item_en.url]
+    assert r.resumo_pt == RESUMO_ARTIGO and not r.sinalizado  # números do artigo não contam como inventados
+    chamadas = modelo.chamadas_de("ResultadoItem")
+    assert len(chamadas) == 2
+    assert "Texto do artigo:" not in chamadas[0][1][1]
+    assert ARTIGO in chamadas[1][1][1]
+
+
+def test_feed_suficiente_nao_baixa_artigo(item_en, glossario, cfg_proc):
+    modelo = ModeloFalso({"ResultadoItem": [resultado_pt()]})
+    ctx = Contexto(modelo, glossario, cfg_proc, buscar_artigo=lambda url: pytest.fail("não devia baixar"))
+    rodar(processar_item(item_en, ctx))
+    assert len(modelo.chamadas) == 1
+
+
+def test_artigo_indisponivel_mantem_resumo_do_feed(item_en, glossario, cfg_proc):
+    modelo = ModeloFalso({"ResultadoItem": [resultado_pt(conteudo_suficiente=False)]})
+    baixados = []
+    ctx = Contexto(modelo, glossario, cfg_proc, buscar_artigo=lambda url: baixados.append(url))
+    r = rodar(processar_item(item_en, ctx))
+    assert len(baixados) == 1 and len(modelo.chamadas) == 1  # tenta uma vez, sem nova chamada ao LLM
+    assert r.titulo_pt.startswith("Acme lança") and not r.traducao_indisponivel
+
+
+def test_artigo_insuficiente_nao_baixa_de_novo(item_en, glossario, cfg_proc):
+    modelo = ModeloFalso({"ResultadoItem": [resultado_pt(conteudo_suficiente=False)]})
+    baixados = []
+    ctx = Contexto(modelo, glossario, cfg_proc, buscar_artigo=lambda url: baixados.append(url) or ARTIGO)
+    rodar(processar_item(item_en, ctx))
+    assert len(baixados) == 1 and len(modelo.chamadas) == 2
+
+
 def test_erro_em_um_item_nao_derruba_os_outros(item_en, glossario, cfg_proc):
     outro = item_en.model_copy(update={"url": "https://exemplo.com/2", "url_normalizada": "https://exemplo.com/2"})
 

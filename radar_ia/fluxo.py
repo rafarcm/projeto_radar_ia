@@ -2,8 +2,10 @@
 
 Dois grafos:
 
-* grafo do item: preparar -> gerar -> verificar -> (refazer: gerar | concluir)
-  A revisão da tradução é um laço condicional explícito.
+* grafo do item: preparar -> gerar -> [aprofundar -> gerar] -> verificar -> (refazer: gerar | concluir)
+  Se o LLM indicar que o feed não traz detalhes suficientes, `aprofundar` baixa o
+  artigo e o resumo é refeito com o texto completo. A revisão da tradução é um laço
+  condicional explícito.
 * grafo do radar: coletar -> selecionar -> [texto_completo] -> traduzir_item (um por
   notícia, em paralelo via Send) -> montar_relatorio -> checagem_final -> gerar_pdf
   -> registrar_historico -> [entregar]
@@ -14,6 +16,7 @@ interrompida pode ser retomada (`radar gerar --retomar`) sem refazer o que já f
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import operator
 from dataclasses import dataclass
@@ -72,6 +75,8 @@ class EstadoItem(TypedDict, total=False):
     pendencias: list[str]
     idioma_ok: bool
     processado: ItemProcessado | None
+    aprofundado: bool
+    buscar_artigo: bool
 
 
 def _preparar(estado: EstadoItem, runtime: Runtime[Contexto]) -> dict[str, Any]:
@@ -84,7 +89,7 @@ def _preparar(estado: EstadoItem, runtime: Runtime[Contexto]) -> dict[str, Any]:
     saida: dict[str, Any] = {
         "idioma": deteccao.idioma, "idioma_confiavel": deteccao.origem == "texto",
         "chave": chave, "tentativa": 0, "max_retentativas": ctx.cfg.max_tentativas_traducao,
-        "correcao": "", "processado": None,
+        "correcao": "", "processado": None, "aprofundado": False,
     }
     if ctx.armazenamento and (cache := ctx.armazenamento.obter_traducao(chave)):
         log.debug("cache_traducao_hit url=%s", item.url_normalizada)
@@ -98,8 +103,27 @@ async def _gerar(estado: EstadoItem, runtime: Runtime[Contexto]) -> dict[str, An
     """Uma chamada estruturada ao LLM: tradução + resumo + tema + relevância."""
     ctx = runtime.context
     gerar = estruturado(ctx.modelo, ResultadoItem, ctx.cfg.tentativas)
-    r = await gerar.ainvoke(mensagens_item(estado["item"], ctx, estado["idioma"], estado["correcao"]))
-    return {"resultado": r, "tentativa": estado["tentativa"] + 1}
+    item = estado["item"]
+    r = await gerar.ainvoke(mensagens_item(item, ctx, estado["idioma"], estado["correcao"]))
+    # Só uma busca por item, e só se o artigo ainda não foi lido (ex.: --texto-completo).
+    buscar = (not r.conteudo_suficiente and not estado["aprofundado"]
+              and not item.texto_completo and ctx.buscar_artigo is not None)
+    if buscar:
+        log.info("conteudo_insuficiente url=%s (baixando o artigo)", item.url)
+    return {"resultado": r, "tentativa": estado["tentativa"] + 1, "buscar_artigo": buscar}
+
+
+async def _aprofundar(estado: EstadoItem, runtime: Runtime[Contexto]) -> dict[str, Any]:
+    """O feed não trouxe detalhes suficientes: baixa o artigo para refazer o resumo."""
+    item = estado["item"]
+    texto = await asyncio.to_thread(runtime.context.buscar_artigo, item.url)
+    if not texto:
+        log.info("artigo_indisponivel url=%s (mantido o resumo do feed)", item.url)
+        return {"aprofundado": True}
+    log.info("artigo_baixado url=%s caracteres=%d", item.url, len(texto))
+    # O resumo é refeito do zero, com todas as tentativas de revisão disponíveis.
+    return {"item": item.model_copy(update={"texto_completo": texto}), "aprofundado": True,
+            "resultado": None, "tentativa": 0, "correcao": ""}
 
 
 async def _verificar(estado: EstadoItem, runtime: Runtime[Contexto]) -> dict[str, Any]:
@@ -143,6 +167,14 @@ def _depois_de_preparar(estado: EstadoItem) -> str:
     return END if estado.get("processado") else "gerar"
 
 
+def _depois_de_gerar(estado: EstadoItem) -> str:
+    return "aprofundar" if estado["buscar_artigo"] else "verificar"
+
+
+def _depois_de_aprofundar(estado: EstadoItem) -> str:
+    return "verificar" if estado["resultado"] else "gerar"
+
+
 def _depois_de_verificar(estado: EstadoItem) -> str:
     if not estado["pendencias"]:
         return "concluir"
@@ -155,11 +187,13 @@ def construir_grafo_item():
     g = StateGraph(EstadoItem, context_schema=Contexto)
     g.add_node("preparar", _preparar)
     g.add_node("gerar", _gerar)
+    g.add_node("aprofundar", _aprofundar)
     g.add_node("verificar", _verificar)
     g.add_node("concluir", _concluir)
     g.add_edge(START, "preparar")
     g.add_conditional_edges("preparar", _depois_de_preparar, ["gerar", END])
-    g.add_edge("gerar", "verificar")
+    g.add_conditional_edges("gerar", _depois_de_gerar, ["aprofundar", "verificar"])
+    g.add_conditional_edges("aprofundar", _depois_de_aprofundar, ["gerar", "verificar"])
     g.add_conditional_edges("verificar", _depois_de_verificar, ["gerar", "concluir"])
     g.add_edge("concluir", END)
     # Sem checkpoint próprio: o grafo do radar já salva o resultado de cada item.
@@ -207,6 +241,7 @@ class EstadoRadar(TypedDict, total=False):
     coletados: list[ItemColetado]
     falhas: list[FalhaFonte]
     selecionados: list[ItemColetado]
+    ja_reportados: int
     processados: Annotated[list[ItemProcessado], operator.add]  # junta os resultados paralelos
     relatorio: Relatorio
     pdf: str
@@ -241,17 +276,21 @@ def _selecionar(estado: EstadoRadar, runtime: Runtime[ContextoRadar]) -> dict[st
     ctx, opcoes = runtime.context, estado["opcoes"]
     itens = deduplicar(estado["coletados"], ctx.config.deduplicacao.limiar_titulo)
     log.info("deduplicacao_titulo antes=%d depois=%d", len(estado["coletados"]), len(itens))
+    vistos: set[str] = set()
     if not opcoes["ignorar_historico"]:
         vistos = ctx.banco.ja_reportados(i.url_normalizada for i in itens)
         itens = [i for i in itens if i.url_normalizada not in vistos]
         log.info("historico ja_reportados=%d restantes=%d", len(vistos), len(itens))
+        if len(vistos) > len(itens):
+            log.warning("maioria_ja_reportada ja_reportados=%d novos=%d (as notícias já saíram em "
+                        "relatórios anteriores; use --ignorar-historico para incluí-las)", len(vistos), len(itens))
     if ctx.embedder:
         antes = len(itens)
         itens = deduplicar_semantico(itens, ctx.config.deduplicacao.limiar_semantico, ctx.embedder)
         log.info("deduplicacao_semantica antes=%d depois=%d", antes, len(itens))
     if len(itens) > opcoes["max_itens"]:
         log.info("limite_itens descartados=%d max_itens=%d", len(itens) - opcoes["max_itens"], opcoes["max_itens"])
-    return {"selecionados": limitar_itens(itens, opcoes["max_itens"])}
+    return {"selecionados": limitar_itens(itens, opcoes["max_itens"]), "ja_reportados": len(vistos)}
 
 
 def _texto_completo(estado: EstadoRadar, runtime: Runtime[ContextoRadar]) -> dict[str, Any]:
@@ -292,6 +331,7 @@ async def _montar_relatorio(estado: EstadoRadar, runtime: Runtime[ContextoRadar]
         destaques=escolher_destaques(processados, ctx.cfg.num_destaques),
         itens=processados,
         falhas=estado.get("falhas", []),
+        ja_reportados=estado.get("ja_reportados", 0),
     )
     return {"relatorio": rel}
 

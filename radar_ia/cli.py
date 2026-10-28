@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
+from functools import partial
 from pathlib import Path
 from typing import Annotated
 
@@ -12,7 +13,7 @@ import typer
 
 from radar_ia import entrega
 from radar_ia.armazenamento import Armazenamento
-from radar_ia.coleta import baixar, interpretar_feed
+from radar_ia.coleta import baixar, baixar_texto_artigo, interpretar_feed
 from radar_ia.config import Config, ErroConfiguracao, carregar_config, modelo_configurado
 from radar_ia.fontes import (
     ARQUIVO_PADRAO,
@@ -116,7 +117,9 @@ def _criar_contexto(cfg: Config, fontes: list[Fonte], gloss: Glossario, opcoes, 
         except Exception as e:  # noqa: BLE001 - provedor/pacote ausente, chave faltando
             _sair_com_erro(f"Não foi possível iniciar o modelo '{identificador}': {e}")
         proc = Contexto(modelo=modelo, glossario=gloss, cfg=cfg.processamento, armazenamento=banco,
-                        identificador_modelo=identificador, verificar_traducao=opcoes["verificar_traducao"])
+                        identificador_modelo=identificador, verificar_traducao=opcoes["verificar_traducao"],
+                        buscar_artigo=partial(baixar_texto_artigo, cfg=cfg.coleta)
+                        if cfg.processamento.buscar_artigo_se_insuficiente else None)
     return ContextoRadar(config=cfg, fontes=fontes, banco=banco, proc=proc, embedder=embedder)
 
 
@@ -136,6 +139,7 @@ async def _executar(cfg: Config, fontes: list[Fonte], gloss: Glossario, opcoes, 
             estado = await construir_grafo_radar().ainvoke(
                 {"opcoes": opcoes, "inicio": inicio, "fim": fim}, context=ctx)
             _mostrar_simulacao(estado["selecionados"], estado["falhas"], inicio, fim)
+            _avisar_historico(estado)
             return OK
 
         cfg.saida.banco_checkpoints.parent.mkdir(parents=True, exist_ok=True)
@@ -170,7 +174,8 @@ async def _executar(cfg: Config, fontes: list[Fonte], gloss: Glossario, opcoes, 
     finally:
         banco.fechar()
 
-    typer.secho(f"PDF gerado: {estado['pdf']}", fg=typer.colors.GREEN)
+    typer.secho(f"PDF gerado: {estado['pdf']} ({len(estado['relatorio'].itens)} notícias)", fg=typer.colors.GREEN)
+    _avisar_historico(estado)
     resultado = estado.get("entrega") or {}
     for canal, erro in resultado.items():
         if erro:
@@ -178,6 +183,15 @@ async def _executar(cfg: Config, fontes: list[Fonte], gloss: Glossario, opcoes, 
         else:
             typer.secho(f"{canal}: enviado", fg=typer.colors.GREEN)
     return ENTREGA_PARCIAL if any(resultado.values()) else OK
+
+
+def _avisar_historico(estado) -> None:  # noqa: ANN001
+    """Avisa quando o histórico tirou mais notícias do que sobraram."""
+    from radar_ia.pdf import aviso_historico
+
+    ja_reportados = estado.get("ja_reportados", 0)
+    if ja_reportados and ja_reportados > len(estado["selecionados"]):
+        typer.secho(aviso_historico(ja_reportados), fg=typer.colors.YELLOW)
 
 
 def _mostrar_simulacao(itens, falhas, inicio: datetime, fim: datetime) -> None:  # noqa: ANN001

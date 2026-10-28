@@ -90,7 +90,7 @@ Se aparecer `Permissão negada`, torne o script executável com `chmod +x radar.
 ```bash
 radar fontes testar                 # confere se os feeds respondem
 radar gerar --simular               # mostra o que seria processado, sem chamar o LLM (custo zero)
-radar gerar --sem-enviar            # gera só o PDF em relatorios/radar-ia_AAAA-MM-DD.pdf
+radar gerar --sem-enviar            # gera só o PDF em relatorios/radar-ia_AAAA-MM-DD_HHMM.pdf
 radar gerar                         # gera e envia pelos canais ativos
 ```
 
@@ -103,7 +103,7 @@ Opções de `radar gerar`:
 | `--simular` | coleta e lista os itens, sem LLM e sem PDF |
 | `--sem-enviar` | só gera o PDF |
 | `--verificar-traducao` | segunda chamada ao LLM por item para revisar a fidelidade (dobra o custo) |
-| `--texto-completo` | baixa o texto do artigo com trafilatura, respeitando robots.txt (o padrão usa só título e resumo do feed) |
+| `--texto-completo` | baixa o texto de **todos** os artigos com trafilatura, respeitando robots.txt (por padrão, o artigo só é baixado quando o feed não traz detalhes suficientes; veja abaixo) |
 | `--ignorar-historico` | inclui notícias que já saíram em relatórios anteriores |
 | `--retomar` | continua a última execução interrompida de onde parou, sem refazer as traduções já prontas |
 | `-v` / `--verbose` | logs detalhados (use antes do comando: `radar -v gerar`) |
@@ -182,9 +182,12 @@ coletar ─▶ selecionar ─┬─▶ (--simular: fim)
 Cada notícia passa por um subgrafo com o **laço de revisão** explícito:
 
 ```
-preparar (idioma + cache) ─▶ gerar (LLM) ─▶ verificar ─┬─▶ gerar   (rejeitado e ainda há tentativas)
-                                                       └─▶ concluir (aprovado, com aviso ou "tradução indisponível")
+preparar (idioma + cache) ─▶ gerar (LLM) ─┬─▶ aprofundar (feed insuficiente) ─▶ gerar (com o artigo)
+                                          └─▶ verificar ─┬─▶ gerar   (rejeitado e ainda há tentativas)
+                                                         └─▶ concluir (aprovado, com aviso ou "tradução indisponível")
 ```
+
+O primeiro resumo é feito só com o título e o resumo do feed. Se o LLM indicar que faltam detalhes (`conteudo_suficiente: false`, comum em feeds que trazem só uma frase), `aprofundar` baixa o artigo pelo link da notícia (trafilatura, respeitando robots.txt) e o resumo é refeito com o texto completo. Isso custa uma chamada a mais ao LLM só nesses itens. Se o artigo não puder ser baixado, fica o resumo do feed. Para desligar, use `processamento.buscar_artigo_se_insuficiente: false` no `config.yaml`.
 
 Cada etapa concluída fica salva em `dados/checkpoints.sqlite3`. Se a execução cair no meio (falta de rede, limite da API, Ctrl+C), rode `radar gerar --retomar` para continuar de onde parou com as mesmas opções e a mesma janela de tempo. As notícias já traduzidas não são refeitas. Um `radar gerar` novo descarta a execução interrompida anterior.
 

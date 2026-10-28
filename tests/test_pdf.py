@@ -9,7 +9,11 @@ from radar_ia.pdf import gerar_pdf, nome_arquivo
 
 def test_nome_do_arquivo_usa_data_de_brasilia(tmp_path):
     # 02h UTC do dia 24 ainda é dia 23 em São Paulo
-    assert nome_arquivo(tmp_path, datetime(2026, 10, 24, 2, tzinfo=timezone.utc)).name == "radar-ia_2026-10-23.pdf"
+    assert nome_arquivo(tmp_path, datetime(2026, 10, 24, 2, tzinfo=timezone.utc)).name == "radar-ia_2026-10-23_2300.pdf"
+
+
+def test_pdf_com_aviso_de_historico(tmp_path):
+    assert gerar_pdf(relatorio_exemplo(ja_reportados=54), tmp_path / "r.pdf").stat().st_size > 0
 
 
 def test_gera_pdf_com_dados_falsos(tmp_path):

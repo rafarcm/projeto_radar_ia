@@ -28,7 +28,7 @@ Códigos de saída do CLI: `0` sucesso, `1` erro, `3` PDF gerado mas algum canal
 O pipeline é orquestrado com **dois grafos LangGraph** em [radar_ia/fluxo.py](radar_ia/fluxo.py):
 
 - **Grafo do radar**: `coletar → selecionar → [texto_completo] → traduzir_item × N (fan-out via Send) → montar_relatorio → checagem_final → gerar_pdf → registrar_historico → [entregar]`. Os resultados paralelos se juntam em `EstadoRadar.processados` (reducer `operator.add`). `--simular` termina depois de `selecionar`.
-- **Grafo do item** (compilado com `checkpointer=False`): `preparar (idioma + cache) → gerar (LLM) → verificar → gerar | concluir`. É o laço de revisão: se a verificação reprovar, o motivo volta ao prompt, até `max_tentativas_traducao`. `processar_item_seguro` converte exceções em item "Tradução indisponível" em vez de derrubar o relatório.
+- **Grafo do item** (compilado com `checkpointer=False`): `preparar (idioma + cache) → gerar (LLM) → [aprofundar → gerar] → verificar → gerar | concluir`. Se o LLM responder `conteudo_suficiente=False`, `aprofundar` chama `Contexto.buscar_artigo` (no CLI, `coleta.baixar_texto_artigo`) uma única vez e o resumo é refeito com o texto do artigo. Depois vem o laço de revisão: se a verificação reprovar, o motivo volta ao prompt, até `max_tentativas_traducao`. `processar_item_seguro` converte exceções em item "Tradução indisponível" em vez de derrubar o relatório.
 
 Pontos que exigem ler vários arquivos:
 

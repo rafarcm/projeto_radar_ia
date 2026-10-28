@@ -7,6 +7,9 @@ coleta:
   timeout_segundos: 20
   tentativas: 3
   user_agent: "radar-ia/0.1 (+https://github.com/seu-usuario/radar-ia)"
+  # Corte do texto do artigo enviado ao LLM (--texto-completo ou feed insuficiente).
+  # 20000 caracteres (~5 mil tokens) cobrem quase todos os artigos; o excedente é descartado.
+  max_caracteres_artigo: 20000
 
 deduplicacao:
   limiar_titulo: 90          # 0-100; similaridade de título acima disso = duplicado
@@ -23,6 +26,9 @@ processamento:
   tentativas: 3
   max_tentativas_traducao: 2 # refazer quando o texto gerado não sai em português
   num_destaques: 5           # 3 a 5
+  # Se o feed traz só o título ou um resumo curto, baixa o artigo (respeitando
+  # robots.txt) e refaz o resumo com o texto completo. Custa uma chamada a mais ao LLM.
+  buscar_artigo_se_insuficiente: true
 
 saida:
   pasta_relatorios: relatorios

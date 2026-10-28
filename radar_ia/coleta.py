@@ -32,7 +32,6 @@ log = logging.getLogger(__name__)
 _TAGS = re.compile(r"<[^>]+>")
 _ESPACOS = re.compile(r"\s+")
 MAX_RESUMO = 1500
-MAX_TEXTO_COMPLETO = 6000
 
 
 @dataclass
@@ -214,22 +213,28 @@ def permitido_por_robots(url: str, cfg: ConfigColeta) -> bool:
     return parser is None or parser.can_fetch(cfg.user_agent, url)
 
 
-def baixar_texto_completo(itens: list[ItemColetado], cfg: ConfigColeta) -> None:
-    """Preenche item.texto_completo com trafilatura, respeitando robots.txt."""
+def baixar_texto_artigo(url: str, cfg: ConfigColeta) -> str | None:
+    """Texto do artigo extraído com trafilatura, respeitando robots.txt; None se não der."""
     import trafilatura
 
+    if not permitido_por_robots(url, cfg):
+        log.info("robots_bloqueou url=%s", url)
+        return None
+    try:
+        resp = baixar(url, cfg)
+        texto = trafilatura.extract(resp.text, include_comments=False, include_tables=False)
+    except Exception as e:  # noqa: BLE001
+        log.warning("texto_completo_falhou url=%s erro=%r", url, _descrever_erro(e))
+        return None
+    return texto[:cfg.max_caracteres_artigo] if texto else None
+
+
+def baixar_texto_completo(itens: list[ItemColetado], cfg: ConfigColeta) -> None:
+    """Preenche item.texto_completo de todos os itens (opção --texto-completo)."""
+
     def _um(item: ItemColetado) -> None:
-        if not permitido_por_robots(item.url, cfg):
-            log.info("robots_bloqueou url=%s", item.url)
-            return
-        try:
-            resp = baixar(item.url, cfg)
-            texto = trafilatura.extract(resp.text, include_comments=False, include_tables=False)
-        except Exception as e:  # noqa: BLE001
-            log.warning("texto_completo_falhou url=%s erro=%r", item.url, _descrever_erro(e))
-            return
-        if texto:
-            item.texto_completo = texto[:MAX_TEXTO_COMPLETO]
+        if texto := baixar_texto_artigo(item.url, cfg):
+            item.texto_completo = texto
 
     with ThreadPoolExecutor(max_workers=4) as pool:
         list(pool.map(_um, itens))

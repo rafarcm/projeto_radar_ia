@@ -131,7 +131,13 @@ def _rodape(gerado_em: datetime, fonte: str):
 
 
 def nome_arquivo(pasta: Path, data: datetime) -> Path:
-    return pasta / f"radar-ia_{data.astimezone(FUSO):%Y-%m-%d}.pdf"
+    # Com a hora, uma segunda execução no mesmo dia não sobrescreve o relatório anterior.
+    return pasta / f"radar-ia_{data.astimezone(FUSO):%Y-%m-%d_%H%M}.pdf"
+
+
+def aviso_historico(ja_reportados: int) -> str:
+    return (f"{ja_reportados} notícias coletadas já saíram em relatórios anteriores e não foram repetidas "
+            "(use --ignorar-historico para incluí-las).")
 
 
 def gerar_pdf(rel: Relatorio, destino: Path) -> Path:
@@ -153,7 +159,10 @@ def gerar_pdf(rel: Relatorio, destino: Path) -> Path:
     h += [Spacer(1, 7 * cm), Paragraph("Radar IA", e["capa_titulo"]), Spacer(1, 0.6 * cm),
           Paragraph("Notícias de Inteligência Artificial", e["capa_sub"]), Spacer(1, 0.4 * cm),
           Paragraph(f"Período: {_local(rel.inicio)} a {_local(rel.fim)}", e["capa_sub"]),
-          Paragraph(f"{len(rel.itens)} notícias", e["capa_sub"]), PageBreak()]
+          Paragraph(f"{len(rel.itens)} notícias", e["capa_sub"])]
+    if rel.ja_reportados:
+        h += [Spacer(1, 0.4 * cm), Paragraph(escape(aviso_historico(rel.ja_reportados)), e["aviso"])]
+    h.append(PageBreak())
 
     # Visão geral e destaques
     h += [Paragraph("Visão geral", e["h1"]), Paragraph(escape(rel.visao_geral), e["texto"]), Spacer(1, 12)]

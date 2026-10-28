@@ -24,6 +24,7 @@ class ConfigColeta(BaseModel):
     timeout_segundos: float = Field(default=20, gt=0)
     tentativas: int = Field(default=3, ge=1)
     user_agent: str = "radar-ia/0.1"
+    max_caracteres_artigo: int = Field(default=20000, gt=0)
 
 
 class ConfigDeduplicacao(BaseModel):
@@ -44,6 +45,8 @@ class ConfigProcessamento(BaseModel):
     tentativas: int = Field(default=3, ge=1)
     max_tentativas_traducao: int = Field(default=2, ge=0)
     num_destaques: int = Field(default=5, ge=3, le=5)
+    # Se o feed não traz detalhes suficientes, baixa o artigo e refaz o resumo.
+    buscar_artigo_se_insuficiente: bool = True
 
 
 class ConfigSaida(BaseModel):
